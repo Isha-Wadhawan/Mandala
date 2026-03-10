@@ -49,6 +49,7 @@ import stripe_logo from './stripe_logo.png'
 import razorpay_logo from './razorpay_logo.png'
 import about_img from './about_img.jpg'
 import contact_img from './contact_image.jpg'
+import parcel_icon from './parcel_icon.svg'
 
 export const assets = {
     searchicon,
@@ -69,6 +70,7 @@ export const assets = {
     razorpay_logo,
     about_img,
     contact_img,
+    parcel_icon
 }
 
 export const products = [

@@ -113,15 +113,7 @@ const Add = ({ token }) => {
           </select>
         </div>
 
-        <div>
-          <p className='mb-2'>Sub category</p>
-          <select onChange={(e) => setSubCategory(e.target.value)} value={subCategory} className='w-full px-3 py-2'>
-            <option value="a">a</option>
-            <option value="b">b</option>
-            <option value="c">c</option>
-          </select>
-        </div>
-
+      
         <div>
           <p className='mb-2'>Product Price</p>
           <input onChange={(e) => setPrice(e.target.value)} value={price} className='w-full px-3 py-2 sm:w-[120px]' type="number" placeholder='250' required/>

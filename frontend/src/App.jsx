@@ -8,6 +8,7 @@ import Contact from './pages/Contact'
 import Login from './pages/Login'
 import Orders from './pages/Orders'
 import PlaceOrder from './pages/PlaceOrder'
+import Profile from './pages/Profile'
 import Product from './pages/Product'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -27,6 +28,7 @@ const App = () => {
           <Route path='/about' element={<About/>}/>
           <Route path='/cart' element={<Cart/>}/>
           <Route path='/contact' element={<Contact/>}/>
+          <Route path='/profile' element={<Profile/>}/>
           <Route path='/login' element={<Login/>}/>
           <Route path='/orders' element={<Orders/>}/>
           <Route path='/place-order' element={<PlaceOrder/>}/>

@@ -6,13 +6,13 @@ import authUser from '../middleware/auth.js';
 const orderRouter = express.Router();
 
 // Admin features
-orderRouter.post('/list', adminAuth, allOrders);
+orderRouter.get('/list', adminAuth, allOrders);
 orderRouter.post('/status', adminAuth, updateStatus);
 
 // Payment features (UPI only)
 orderRouter.post('/place', authUser, placeOrder);
 
 // User features
-orderRouter.post('/userorders', authUser, userOrders);
+orderRouter.get('/userorders', authUser, userOrders);
 
 export default orderRouter;

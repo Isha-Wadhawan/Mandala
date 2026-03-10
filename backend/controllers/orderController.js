@@ -4,6 +4,7 @@ import userModel from '../models/userModel.js';
 // placing orders using UPI (dynamic link)
 const placeOrder = async (req, res) => {
   try {
+    
     const { userId, items, amount, address } = req.body;
 
     // your fixed UPI ID
@@ -47,7 +48,7 @@ const placeOrder = async (req, res) => {
 // All orders data for Admin
 const allOrders = async (req, res) => {
   try {
-    const orders = await orderModel.find({});
+    const orders = await orderModel.find({}).sort({ date: -1 });
     res.json({ success: true, orders });
   } catch (err) {
     console.log(err);
