@@ -2,9 +2,7 @@ import React, { useContext, useState } from 'react'
 import Title from '../components/Title'
 import CartTotal from '../components/CartTotal'
 import { ShopContext } from '../context/ShopContext'
-import { QRCodeCanvas } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { toast } from 'react-toastify';
 import axios from "axios"
 
@@ -57,94 +55,46 @@ const PlaceOrder = () => {
   const isMobile = /Android|iPhone/i.test(navigator.userAgent);
 
 
-  // const onSubmitHandler = async (e) => {
-  //   e.preventDefault();
-  //   setLoading(true);
-  //   // 1. Safe User Detection
-  //   let localUser = null;
-  //   const storedData = localStorage.getItem("user");
-  //   if (storedData && storedData !== "undefined") {
-  //     try {
-  //       localUser = JSON.parse(storedData);
-  //     } catch (err) {
-  //       console.error("User data parse error");
-  //     }
-  //   }
+  const initPay = (order) => {
+    if (!window.Razorpay) {
+      toast.error("Razorpay SDK failed to load. Please check your internet connection.");
+      return;
+    }
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Mandala by Jigyasa',
+      description: 'Order Payment',
+      order_id: order.id,
+      handler: async (response) => {
+        try {
+           const { data } = await axios.post(
+    backendUrl + '/api/order/verifyRazorpay',
+    response,
+    { headers: { token } }
+  );
+          if (data.success) {
+            setCartItems({});
+            navigate('/orders');
+            toast.success("Payment Successful!");
+          }
+        } catch (error) {
+          console.log(error);
+          toast.error("Payment verification failed");
+        }
+      },
+      prefill: {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        contact: formData.phone
+      },
+      theme: { color: "#3399cc" }
+    };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
 
-  //   const activeUser = user || localUser;
-
-  //   if (!activeUser || !activeUser._id) {
-  //     toast.error("Please login to place an order");
-  //     navigate("/login");
-  //     return;
-  //   }
-
-  //   // 2. Prepare Order Items
-  //   const orderItems = [];
-  //   for (const id in cartItems) {
-  //     const product = products.find((p) => p._id === id);
-  //     if (!product) continue;
-
-  //     for (const size in cartItems[id]) {
-  //       const quantity = cartItems[id][size];
-  //       if (quantity > 0) {
-  //         orderItems.push({
-  //           productId: product._id,
-  //           name: product.name,
-  //           price: product.price,
-  //           quantity,
-  //           size,
-  //           images: product.images,
-  //         });
-  //       }
-  //     }
-  //   }
-
-  //   if (orderItems.length === 0) {
-  //     toast.error("Your cart is empty");
-  //     setLoading(false);
-  //     return;
-  //   }
-
-  //   // 3. Construct Order Data
-  //   const orderData = {
-  //     userId: activeUser._id,
-  //     items: orderItems,
-  //     amount,
-  //     address: formData,
-  //     paymentMethod: "UPI",
-  //     payment: false, // Remains false until you verify manually in Admin
-  //   };
-
-  //   try {
-  //     // 4. Axios POST Request
-  //     const response = await axios.post(
-  //       `${backendUrl}/api/order/place`,
-  //       orderData,
-  //       { headers: { token } }
-  //     );
-
-  //     if (response.data.success) {
-  //       // Clear cart locally
-  //       setCartItems({});
-  //       localStorage.removeItem("cartItems");
-
-  //       // Success Message for Manual Verification
-  //       toast.success("Order Placed! Verification in progress.");
-
-  //       // Redirect to Orders page
-  //       navigate("/orders");
-  //     } else {
-  //       toast.error(response.data.message || "Order failed");
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //     toast.error(error.response?.data?.message || "Something went wrong");
-  //   }
-  //   finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
@@ -171,35 +121,14 @@ const PlaceOrder = () => {
         amount: getCartAmount() + delivery_fee,
       };
 
-      const response = await axios.post(backendUrl + '/api/order/place', orderData, { headers: { token } });
+      const response = await axios.post(backendUrl + '/api/order/razorpay', orderData, { headers: { token } });
 
       if (response.data.success) {
-        const phoneNumber = "8447326152";
-        const itemDetails = orderItems.map(item => `${item.name} (${item.size}) x${item.quantity}`).join('\n');
-
-        const message = `*New Order Alert!* 🎨\n\n` +
-          `*Items:*\n${itemDetails}\n\n` +
-          `*Total Amount:* ₹${orderData.amount}\n\n` +
-          `*Shipping Address:*\n` +
-          `${formData.firstName} ${formData.lastName}\n` +
-          `${formData.street}, ${formData.city}, ${formData.state}\n` +
-          `Phone: ${formData.phone}\n\n` +
-          `*Please share UPI details for payment!*`;
-
-        const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappURL, '_blank');
-
-        // 6. Finalize
-        setCartItems({});
-        navigate('/orders');
-        toast.success("Order record created! Redirecting to WhatsApp...");
-      } else {
-        toast.error(response.data.message);
+        initPay(response.data.order);
       }
-
     } catch (error) {
       console.log(error);
-      toast.error(error.message);
+      toast.error("Failed to create order");
     }
   }
 
@@ -252,13 +181,12 @@ const PlaceOrder = () => {
           ) : (
             <div className="flex flex-col items-center gap-4">
               <p>TOTAL AMOUNT ₹{amount}</p>
-              <span className='text-sm text-red-600 '>Click below to place your order and view the payment QR code.</span>
 
               <button
                 type='submit'
                 className='bg-[#25D366] text-white px-16 py-3 text-sm active:bg-green-700 rounded-sm flex items-center justify-center gap-2'
               >
-                PLACE ORDER VIA WHATSAPP
+                MAKE PAYMENT
               </button>
             </div>
           )}

@@ -27,7 +27,7 @@ const Bestseller = () => {
             <ProductItem key={index} id={item._id} name={item.name} image={item.images?.[0]} price={item.price}/>
           ))
         }
-      </div>ss
+      </div>
     </div>
   )
 }

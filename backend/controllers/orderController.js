@@ -1,30 +1,35 @@
 import orderModel from '../models/orderModel.js';
 import userModel from '../models/userModel.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
-// placing orders using UPI (dynamic link)
+import 'dotenv/config';
+const currency = 'INR';
+
+const getRazorpayInstance = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay keys are missing in backend environment');
+  }
+
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+};
+
+// placing orders using Cash on Delivery
 const placeOrder = async (req, res) => {
   try {
-    
     const { userId, items, amount, address } = req.body;
-
-    // your fixed UPI ID
-    const upiId = "yourupi@oksbi";
-    const name = "MandalaByJigyasa";
-
-    // generate UPI payment link
-    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
-      name
-    )}&am=${amount}&cu=INR`;
 
     const orderData = {
       userId,
       items,
       amount,
       address,
-      paymentMethod: "UPI",
-      payment: false, // set true manually/admin once confirmed
+      paymentMethod: "COD",
+      payment: false,
       date: Date.now(),
-      upiLink, // store link in DB (optional)
     };
 
     const newOrder = new orderModel(orderData);
@@ -35,10 +40,91 @@ const placeOrder = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Order placed, complete payment via UPI",
-      upiLink,
+      message: "Order placed successfully",
       orderId: newOrder._id,
     });
+  } catch (err) {
+    console.log(err);
+    res.json({ success: false, message: err.message });
+  }
+};
+
+// placing orders using Razorpay
+const placeOrderRazorpay = async (req, res) => {
+  try {
+    const { userId, items, amount, address } = req.body;
+
+    const razorpay = getRazorpayInstance();
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency,
+      receipt: `temp_${Date.now()}`,
+      notes: {
+        userId,
+        items: JSON.stringify(items),
+        address: JSON.stringify(address),
+        amount
+      },
+    });
+
+    res.json({
+      success: true,
+      order: razorpayOrder,
+      key: process.env.RAZORPAY_KEY_ID,
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.json({ success: false, message: err.message });
+  }
+};
+
+// verifying Razorpay payment signature
+const verifyRazorpay = async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    } = req.body;
+
+    const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`;
+
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(signaturePayload)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.json({ success: false, message: 'Payment verification failed' });
+    }
+
+    // 🔥 Fetch order details from Razorpay
+    const razorpay = getRazorpayInstance();
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+
+    const { userId, items, address, amount } = order.notes;
+
+    // 🧾 Create order in DB AFTER success
+    const newOrder = new orderModel({
+      userId,
+      items: JSON.parse(items),
+      amount,
+      address: JSON.parse(address),
+      paymentMethod: "Razorpay",
+      payment: true,
+      transactionRef: razorpay_payment_id,
+      date: Date.now(),
+    });
+
+    await newOrder.save();
+
+    // 🛒 Clear cart
+    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+    res.json({ success: true, message: "Payment successful & order created" });
+
   } catch (err) {
     console.log(err);
     res.json({ success: false, message: err.message });
@@ -81,4 +167,4 @@ const updateStatus = async (req, res) => {
   }
 };
 
-export { placeOrder, allOrders, userOrders, updateStatus };
+export { placeOrder, placeOrderRazorpay, verifyRazorpay, allOrders, userOrders, updateStatus };
