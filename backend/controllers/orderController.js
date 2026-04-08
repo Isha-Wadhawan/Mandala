@@ -62,8 +62,6 @@ const placeOrderRazorpay = async (req, res) => {
       receipt: `temp_${Date.now()}`,
       notes: {
         userId,
-        items: JSON.stringify(items),
-        address: JSON.stringify(address),
         amount
       },
     });
